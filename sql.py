@@ -212,27 +212,25 @@ def search_card_exact_and_compare(db_name, table_name, column_name, file_path) -
   cursor = conn.cursor()
 
   try:
-    # Open and read the file line by line
-    with open(file_path, "r") as file:
-      for line in file:
-        # Strip newline characters and extra spaces
-        search_value = line.strip()
+    file_path =  file_path.replace("\r", "")
+    cards = file_path.split("\n")
 
-      # Ignore empty lines
-        if not search_value:
-          continue
-        
-        # SQL query to select all rows where the column exactly matches the search value
-        query = f"SELECT * FROM {table_name} WHERE {column_name} = ?"
-        cursor.execute(query, (search_value,))
+    for card in cards:
+      # Split the card into name and quantity
+      name, quantity = card.split(",", 1)
 
-        # Fetch all matching rows
-        results = (cursor.fetchone())
+      # Convert the name to lowercase for consistency
+      lower_name = name.lower()
 
-        if results:
-          formatted.append(f"Found {results[0]} -> you have {results[1]}")
-        else:
-          formatted.append(f"{search_value} not in database.")
+      # Check if the record exists and get the current quantity
+      select_query = f"SELECT quantity FROM {table_name} WHERE LOWER({column_name}) = LOWER(?)"
+      cursor.execute(select_query, (lower_name,))
+      result = cursor.fetchone()
+
+      if result:
+        current_quantity = result[0]
+        current_quantity = current_quantity - int(quantity.strip())
+        formatted.append(f"Found \"{name}\": you need {current_quantity}")
 
   except Exception as e:
       return f"An error occurred: {e}"
@@ -253,7 +251,7 @@ table_name = 'cards'
 column_name = 'name'
 substring = "island"
 query="island, 11"
-file_path= "cards.txt"
+# file_path= "cards.txt"
 
 
 #print(search_card(db_name, table_name, column_name, substring))

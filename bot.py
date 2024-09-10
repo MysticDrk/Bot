@@ -1,4 +1,6 @@
 import aiohttp
+import os
+import logging # to be implemented
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -8,9 +10,6 @@ from sql import *
 db_name = 'data.db'
 table_name = 'cards'
 column_name = 'name'
-
-# Replace 'YOUR_TOKEN' with the token you got from BotFather
-TOKEN = '7240163852:AAHvWtYO6e6tTIB1lsvQo7aMtGgakAdxBtM'
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text('Hello! Use /search <query> to search.')
@@ -73,17 +72,27 @@ async def handle_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
         async with aiohttp.ClientSession() as session:
             async with session.get(file_url) as response:
                 if response.status == 200:
-                    content = await response.text()
-                    await update.message.reply_text(f'Content of the file:\n{content}')
+                    content = search_card_exact_and_compare(db_name,table_name,column_name, await response.text())
+                    response = ""
+                    for row in content:
+                        response += row + "\n"
+                    await update.message.reply_text(response)
                 else:
                     await update.message.reply_text('Failed to read the file content. Please try again.')
 
     else:
         await update.message.reply_text('Please upload a valid text file.')
 
+def get_env_variable(name: str) -> str:
+    try:
+        return os.environ[name]
+    except KeyError:
+        message = f"Expected environment variable '{name}' not set."
+        raise Exception(message)
+
 def main() -> None:
     # Create the Application and pass it your bot's token
-    application = Application.builder().token(TOKEN).build()
+    application = Application.builder().token(get_env_variable("TG_API")).build()
 
     # Register command handlers
     application.add_handler(CommandHandler("start", start))
