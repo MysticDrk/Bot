@@ -1,0 +1,5 @@
+aiohttp
+os
+telegram
+python-telegram-bot
+sql
