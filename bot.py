@@ -47,7 +47,7 @@ async def remove(update: Update, context: ContextTypes.DEFAULT_TYPE)->None:
     else:
         await update.message.reply_text('Please provide a query.')
         
-async def compare(update: Update, context: ContextTypes.DEFAULT_TYPE)->None:
+async def compare(update: Update, context: ContextTypes.DEFAULT_TYPE)->None:##TODO implement ez list compare
     query = ' '.join(context.args)
     if query:
         response = search_card_exact_and_compare(db_name,table_name,column_name, file_path=query)
@@ -61,27 +61,55 @@ async def compare(update: Update, context: ContextTypes.DEFAULT_TYPE)->None:
 
 
 async def handle_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    
+    # logging.info(update.message.chat.first_name + "" + " uploaded a file")
+    command = update.message.caption.split()[0]
     file = update.message.document
+    if command == "/compare":  
+        if file.mime_type == 'text/plain':  # Ensure it's a text file
+            file_id = file.file_id
+            new_file = await context.bot.get_file(file_id)
+            file_url = new_file.file_path
 
-    if file.mime_type == 'text/plain':  # Ensure it's a text file
-        file_id = file.file_id
-        new_file = await context.bot.get_file(file_id)
-        file_url = new_file.file_path
+            # Open the file in memory without saving it locally
+            async with aiohttp.ClientSession() as session:
+                async with session.get(file_url) as response:
+                    if response.status == 200:
+                        content = search_card_exact_and_compare(db_name,table_name,column_name, await response.text())
+                        response = ""
+                        for row in content:
+                            response += row + "\n"
+                        await update.message.reply_text(response)
+                    else:
+                        await update.message.reply_text('Failed to read the file content. Please try again.')
+        else:
+            await update.message.reply_text('Please upload a valid text file.')
+    if command == "/add":
+        if file.mime_type == 'text/plain':  # Ensure it's a text file
+            file_id = file.file_id
+            new_file = await context.bot.get_file(file_id)
+            file_url = new_file.file_path
 
-        # Open the file in memory without saving it locally
-        async with aiohttp.ClientSession() as session:
-            async with session.get(file_url) as response:
-                if response.status == 200:
-                    content = search_card_exact_and_compare(db_name,table_name,column_name, await response.text())
-                    response = ""
-                    for row in content:
-                        response += row + "\n"
-                    await update.message.reply_text(response)
-                else:
-                    await update.message.reply_text('Failed to read the file content. Please try again.')
+            # Open the file in memory without saving it locally
+            async with aiohttp.ClientSession() as session:
+                async with session.get(file_url) as response:
+                    if response.status == 200:
+                        content = add_cards_from_file(db_name,table_name, await response.text())
+                        response = ""
+                        for row in content:
+                            response += row + "\n"
+                        await update.message.reply_text(response)
+                    else:
+                        await update.message.reply_text('Failed to read the file content. Please try again.')
+        else:
+            await update.message.reply_text('Please upload a valid text file.')
 
-    else:
-        await update.message.reply_text('Please upload a valid text file.')
+async def handle_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    context.args = update.message.text.split()[1:]
+    if context.args[0] == "search":
+        await update.message.reply_text("Searching...")
+    elif context.args[0] == "add":
+        await update.message.reply_text("Adding...")
 
 def get_env_variable(name: str) -> str:
     try:
@@ -103,6 +131,7 @@ def main() -> None:
     
     # Register a message handler to handle file uploads
     application.add_handler(MessageHandler(filters.Document.ALL, handle_file_upload))
+    #application.add_handler(MessageHandler(filters=[filters.Document.ALL,filters.Command], ))
     
 
     
