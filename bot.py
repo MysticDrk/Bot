@@ -47,7 +47,7 @@ async def remove(update: Update, context: ContextTypes.DEFAULT_TYPE)->None:
     else:
         await update.message.reply_text('Please provide a query.')
         
-async def compare(update: Update, context: ContextTypes.DEFAULT_TYPE)->None:##TODO implement ez list compare
+async def compare(update: Update, context: ContextTypes.DEFAULT_TYPE)->None:
     query = ' '.join(context.args)
     if query:
         response = search_card_exact_and_compare(db_name,table_name,column_name, file_path=query)

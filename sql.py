@@ -282,8 +282,8 @@ def search_card_exact_and_compare(db_name, table_name, column_name, file_path) -
 
       if result:
         current_quantity = result[0]
-        current_quantity = current_quantity - int(quantity.strip())
-        formatted.append(f"Found \"{name}\": you need {current_quantity}")
+        current_quantity = int(quantity.strip()) - current_quantity
+        formatted.append(f"Found \"{name}\": you need {current_quantity if current_quantity > 0 else 0}")
 
   except Exception as e:
       return f"An error occurred: {e}"
