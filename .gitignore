@@ -2,3 +2,4 @@ __pycache__/sql.cpython-312.pyc
 .vscode/launch.json
 cards.txt
 authids.txt
+inventory_*.txt

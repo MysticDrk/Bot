@@ -1,5 +1,6 @@
 import sqlite3
-
+import os
+import uuid
 
 
 def add_or_update_quantity(db_name: str, table_name: str,query: str) -> str:
@@ -294,16 +295,101 @@ def search_card_exact_and_compare(db_name, table_name, column_name, file_path) -
 
   return formatted if formatted else "No matches found."
 
+def remove_cards_from_file(db_name, table_name, file_path) -> str:
+  """
+  Remove cards from a text file from the database.
 
+  :param db_name: The SQLite database file name (e.g., 'data.db').
+  :param table_name: The name of the table to query (e.g., 'cards').
+  :param file_path: The path to the text file containing the cards to remove.
+  :return: A message indicating the result of the operation.
+  """
+  conn = sqlite3.connect(db_name)
+  cursor = conn.cursor()
 
+  formatted = []
+
+  try:
+    file_path =  file_path.replace("\r", "")# Remove carriage return characters because Windows
+    lines = file_path.split("\n")
+
+    # Process each line
+    for line in lines:
+      name, quantity = line.split(",", 1)
+      lower_name = name.lower()
+
+      # Check if the record exists and get the current quantity
+      select_query = f"SELECT quantity FROM {table_name} WHERE LOWER(name) = LOWER(?)"
+      cursor.execute(select_query, (lower_name,))
+      result = cursor.fetchone()
+
+      if result:
+        current_quantity = result[0]
+        new_quantity = current_quantity - int(quantity.strip())
+
+        if new_quantity > 0:
+          # Update the record with the new quantity
+          update_query = f"UPDATE {table_name} SET quantity = ? WHERE LOWER(name) = LOWER(?)"
+          cursor.execute(update_query, (new_quantity, lower_name))
+        else:
+          # Remove the record from the table if the quantity is 0 or less
+          delete_query = f"DELETE FROM {table_name} WHERE LOWER(name) = LOWER(?)"
+          cursor.execute(delete_query, (lower_name,))
+
+        formatted.append(f"Removed \"{name}\": quantity {quantity.strip()}")
+    # Commit the changes
+    conn.commit()
+
+    return formatted if formatted else "No cards removed."
+
+  except Exception as e:
+    return f"An error occurred: {e}"
+
+  finally:
+    # Close the database connection
+    conn.close()
+
+def return_inventory_file(db_name, table_name, directory) -> str:
+    """
+    Return the inventory from the database to a text file.
+
+    :param db_name: The SQLite database file name (e.g., 'data.db').
+    :param table_name: The name of the table to query (e.g., 'cards').
+    :param directory: The directory where the text file should be created.
+    :return: A message indicating the result of the operation.
+    """
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+
+    try:
+        # SQL query to select all rows from the table
+        query = f"SELECT * FROM {table_name}"
+        cursor.execute(query)
+
+        # Fetch all rows
+        results = cursor.fetchall()
+
+        if not results:
+            return "No inventory to write."
+
+        # Generate a unique file name
+        file_name = f"inventory_{uuid.uuid4().hex}.txt"
+        file_path = os.path.join(directory, file_name)
+
+        # Write the inventory to the file
+        with open(file_path, "w") as file:
+            for row in results:
+                file.write(f"{row[0]},{row[1]}\n")
+
+        return f"{file_path}"
+    finally:
+        conn.close()
 
 
 #Example usage
 db_name = 'data.db'
 table_name = 'cards'
 column_name = 'name'
-substring = "island"
-query="island, 11"
 # file_path= "cards.txt"
 
 

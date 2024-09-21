@@ -28,7 +28,6 @@ def loggingAuth(command, userId, userAlias, isAuthorized):
             return False
     return False
         
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if loggingAuth("start", update.message.from_user.id, update.message.from_user.first_name, check_user(update, context)):
         await update.message.reply_text('Hello! Use /search <query> to search.')
@@ -59,7 +58,7 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     query = ' '.join(context.args)
     if query:
-        response = add_card(db_name,table_name,query)
+        response = add_or_update_quantity(db_name,table_name,column_name,query)
         await update.message.reply_text(response)
     else:
         await update.message.reply_text('Please provide a query.')
@@ -71,8 +70,31 @@ async def remove(update: Update, context: ContextTypes.DEFAULT_TYPE)->None:
         return
     query = ' '.join(context.args)
     if query:
-        response = remove_card(db_name,table_name,column_name,query)
+        response = subtract_quantity(db_name,table_name,column_name,query)
         await update.message.reply_text(response)
+    else:
+        await update.message.reply_text('Please provide a query.')
+
+async def remove_all(update: Update, context: ContextTypes.DEFAULT_TYPE)->None:
+    if not loggingAuth("remove all", update.message.from_user.id, update.message.from_user.first_name, check_user(update, context)):
+        await update.message.reply_text('You are not authorized to use this bot.')
+        return
+    query = ' '.join(context.args)
+    if query != "all":
+        response = subtract_quantity(db_name,table_name,query)
+        await update.message.reply_text(response)
+    if query == "all":
+        inv = return_inventory_file(db_name, table_name, "./")
+        if inv != "No inventory to write.":
+            with open(inv, "r") as file:
+                content = file.read()
+                for row in content.split("\n"):
+                    if row:
+                        subtract_quantity(db_name,table_name,row)
+            await update.message.reply_text("All cards have been removed, inventory has been reset. Check /return_inv_file to veryify.")
+        else:
+            await update.message.reply_text(f"Failed to remove all cards. {inv}")
+
     else:
         await update.message.reply_text('Please provide a query.')
         
@@ -135,6 +157,24 @@ async def handle_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         await update.message.reply_text('Failed to read the file content. Please try again.')
         else:
             await update.message.reply_text('Please upload a valid text file.')
+    if command == "/remove":
+        if file.mime_type == 'text/plain':
+            file_id = file.file_id
+            new_file = await context.bot.get_file(file_id)
+            file_url = new_file.file_path
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(file_url) as response:
+                    if response.status == 200:
+                        content = remove_cards_from_file(db_name,table_name, await response.text())
+                        response = ""
+                        for row in content:
+                            response += row + "\n"
+                        await update.message.reply_text(response)
+                    else:
+                        await update.message.reply_text('Failed to read the file content. Please try again.')
+    else:
+        await update.message.reply_text('Please upload the text file with an appropriate command.')
 
 async def handle_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:#???
     context.args = update.message.text.split()[1:]
@@ -142,6 +182,23 @@ async def handle_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text("Searching...")
     elif context.args[0] == "add":
         await update.message.reply_text("Adding...")
+
+async def return_inv_file(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not loggingAuth("return inventory file", update.message.from_user.id, update.message.from_user.first_name, check_user(update, context)):
+        await update.message.reply_text('You are not authorized to use this bot.')
+        return
+
+    # Generate the inventory file
+    response = return_inventory_file(db_name, table_name, "./")
+
+    # Send the file to the user
+    if os.path.exists(response):
+        await context.bot.send_document(chat_id=update.message.chat_id, document=open(response, 'rb'))
+        await update.message.reply_text('Inventory file has been sent.')
+    else:
+        await update.message.reply_text('Failed to generate the inventory file.')
+
+    os.remove(response)
 
 def get_env_variable(name: str) -> str:
     try:
@@ -175,6 +232,8 @@ def main() -> None:
     application.add_handler(CommandHandler("add", add))
     application.add_handler(CommandHandler("remove", remove))
     application.add_handler(CommandHandler("compare", compare))
+    application.add_handler(CommandHandler("remove_all", remove_all))
+    application.add_handler(CommandHandler("return_inv_file", return_inv_file))
     
     # Register a message handler to handle file uploads
     application.add_handler(MessageHandler(filters.Document.ALL, handle_file_upload))
