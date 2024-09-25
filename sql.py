@@ -421,12 +421,11 @@ def add_diff(db_name, table_name, file_path) -> str:
                     # Update the record with the new quantity
                     update_query = f"UPDATE {table_name} SET quantity = ? WHERE LOWER(name) = LOWER(?)"
                     cursor.execute(update_query, (new_quantity, lower_name))
+                    formatted.append(f"Updated \"{name}\": quantity {current_quantity} -> {new_quantity.strip()}")
                 else:
-                    # Remove the record from the table if the quantity is 0 or less
-                    delete_query = f"DELETE FROM {table_name} WHERE LOWER(name) = LOWER(?)"
-                    cursor.execute(delete_query, (lower_name,))
+                    formatted.append(f"You already own \"{name}\": quantity {current_quantity} (no change)")
 
-                formatted.append(f"Updated \"{name}\": quantity {current_quantity} -> {quantity.strip()}")
+                
             else:
                 # Insert a new record if it does not exist
                 insert_query = f"INSERT INTO {table_name} (name, quantity) VALUES (?, ?)"
