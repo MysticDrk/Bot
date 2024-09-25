@@ -27,7 +27,8 @@ def loggingAuth(command, userId, userAlias, isAuthorized):
             logging.warning(f"Unauthorized {command} access by {userAlias} ({userId})")
             return False
     return False
-        
+
+# Command handlers        
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if loggingAuth("start", update.message.from_user.id, update.message.from_user.first_name, check_user(update, context)):
         await update.message.reply_text('Hello! Use /search <query> to search.')
@@ -49,8 +50,7 @@ async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 await update.message.reply_text(row)
     else:
         await update.message.reply_text('Please provide a query.')
-        
-        
+
 async def add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not loggingAuth("add", update.message.from_user.id, update.message.from_user.first_name, check_user(update, context)):
         await update.message.reply_text('You are not authorized to use this bot.')
@@ -63,7 +63,6 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         await update.message.reply_text('Please provide a query.')
         
-
 async def remove(update: Update, context: ContextTypes.DEFAULT_TYPE)->None:
     if not loggingAuth("remove", update.message.from_user.id, update.message.from_user.first_name, check_user(update, context)):
         await update.message.reply_text('You are not authorized to use this bot.')
@@ -91,6 +90,7 @@ async def remove_all(update: Update, context: ContextTypes.DEFAULT_TYPE)->None:
                 for row in content.split("\n"):
                     if row:
                         subtract_quantity(db_name,table_name,row)
+            os.remove(inv)
             await update.message.reply_text("All cards have been removed, inventory has been reset. Check /return_inv_file to veryify.")
         else:
             await update.message.reply_text(f"Failed to remove all cards. {inv}")
@@ -136,6 +136,7 @@ async def handle_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         await update.message.reply_text(response)
                     else:
                         await update.message.reply_text('Failed to read the file content. Please try again.')
+                    return
         else:
             await update.message.reply_text('Please upload a valid text file.')
     if command == "/add":
@@ -155,6 +156,7 @@ async def handle_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         await update.message.reply_text(response)
                     else:
                         await update.message.reply_text('Failed to read the file content. Please try again.')
+                    return
         else:
             await update.message.reply_text('Please upload a valid text file.')
     if command == "/remove":
@@ -173,6 +175,24 @@ async def handle_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         await update.message.reply_text(response)
                     else:
                         await update.message.reply_text('Failed to read the file content. Please try again.')
+                    return
+    if command == "/add_diff":
+        if file.mime_type == 'text/plain':
+            file_id = file.file_id
+            new_file = await context.bot.get_file(file_id)
+            file_url = new_file.file_path
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(file_url) as response:
+                    if response.status == 200:
+                        content = add_diff(db_name,table_name, await response.text())
+                        response = ""
+                        for row in content:
+                            response += row + "\n"
+                        await update.message.reply_text(response)
+                    else:
+                        await update.message.reply_text('Failed to read the file content. Please try again.')
+                    return
     else:
         await update.message.reply_text('Please upload the text file with an appropriate command.')
 
@@ -200,6 +220,13 @@ async def return_inv_file(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     os.remove(response)
 
+async def help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not loggingAuth("help", update.message.from_user.id, update.message.from_user.first_name, check_user(update, context)):
+        await update.message.reply_text('You are not authorized to use this bot.')
+        return
+    await update.message.reply_text('Use /search <query> to search.\nUse /add <query> to add a card.\nUse /remove <query> to remove a card.\nUse /compare <query> to compare a card.\nUse /remove_all all to remove all cards or all istances of a card by adding the card name.\nUse /return_inv_file to get the inventory file.\nUse /remove while sending an attached file to remove the contents of the file form the inventory.\nUse /compare while sending an attached file to get the car that are present in the file but not in the inventory.\nUse /add while sending an attached file to add the cards present in the sent file.')
+
+# Utility functions
 def get_env_variable(name: str) -> str:
     try:
         return os.environ[name]
@@ -220,6 +247,7 @@ def load_ids() -> None:
     global authorized_users
     authorized_users = list(map(int, get_env_variable("AUTHORIZED_USERS").split(',')))
 
+# Main function
 def main() -> None:
     # Load the authorized user IDs
     load_ids()
@@ -234,6 +262,8 @@ def main() -> None:
     application.add_handler(CommandHandler("compare", compare))
     application.add_handler(CommandHandler("remove_all", remove_all))
     application.add_handler(CommandHandler("return_inv_file", return_inv_file))
+    application.add_handler(CommandHandler("help", help))
+    
     
     # Register a message handler to handle file uploads
     application.add_handler(MessageHandler(filters.Document.ALL, handle_file_upload))
@@ -243,6 +273,5 @@ def main() -> None:
     application.run_polling()
     print("Polling...")
     
-
 if __name__ == '__main__':
     main()

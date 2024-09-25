@@ -385,6 +385,65 @@ def return_inventory_file(db_name, table_name, directory) -> str:
     finally:
         conn.close()
 
+def add_diff(db_name, table_name, file_path) -> str:
+    """
+    Add the difference between the database and a text file to the database.
+
+    :param db_name: The SQLite database file name (e.g., 'data.db').
+    :param table_name: The name of the table to query (e.g., 'cards').
+    :param file_path: The path to the text file containing the cards to compare.
+    :return: A message indicating the result of the operation.
+    """
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+
+    formatted = []
+
+    try:
+        file_path =  file_path.replace("\r", "")# Remove carriage return characters because Windows
+        lines = file_path.split("\n")
+
+        # Process each line
+        for line in lines:
+            name, quantity = line.split(",", 1)
+            lower_name = name.lower()
+
+            # Check if the record exists and get the current quantity
+            select_query = f"SELECT quantity FROM {table_name} WHERE LOWER(name) = LOWER(?)"
+            cursor.execute(select_query, (lower_name,))
+            result = cursor.fetchone()
+
+            if result:
+                current_quantity = result[0]
+                new_quantity = int(quantity.strip()) - current_quantity
+
+                if new_quantity > 0:
+                    # Update the record with the new quantity
+                    update_query = f"UPDATE {table_name} SET quantity = ? WHERE LOWER(name) = LOWER(?)"
+                    cursor.execute(update_query, (new_quantity, lower_name))
+                else:
+                    # Remove the record from the table if the quantity is 0 or less
+                    delete_query = f"DELETE FROM {table_name} WHERE LOWER(name) = LOWER(?)"
+                    cursor.execute(delete_query, (lower_name,))
+
+                formatted.append(f"Updated \"{name}\": quantity {current_quantity} -> {quantity.strip()}")
+            else:
+                # Insert a new record if it does not exist
+                insert_query = f"INSERT INTO {table_name} (name, quantity) VALUES (?, ?)"
+                cursor.execute(insert_query, (lower_name, quantity.strip()))
+                formatted.append(f"Added \"{name}\": quantity {quantity.strip()}")
+
+        # Commit the changes
+        conn.commit()
+
+        return formatted if formatted else "No differences added."
+
+    except Exception as e:
+        return f"An error occurred: {e}"
+
+    finally:
+        # Close the database connection
+        conn.close()
 
 #Example usage
 db_name = 'data.db'

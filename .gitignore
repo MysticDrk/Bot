@@ -3,3 +3,4 @@ __pycache__/sql.cpython-312.pyc
 cards.txt
 authids.txt
 inventory_*.txt
+data.db
