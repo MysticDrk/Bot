@@ -1,6 +1,7 @@
 import aiohttp
 import os
-import logging # to be implemented
+import logging
+import subprocess
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -274,4 +275,5 @@ def main() -> None:
     print("Polling...")
     
 if __name__ == '__main__':
+    subprocess.run(["python", "createDB.py"])
     main()

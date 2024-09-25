@@ -21,7 +21,7 @@ def add_or_update_quantity(db_name: str, table_name: str,query: str) -> str:
 
   try:
     # Split the query into name and quantity_to_add
-    name, quantity_to_add = query.split(",", 1)
+    name, quantity_to_add = query.rsplit(",", 1)
     
     # Check if the name is not null or empty
     if not name.strip():
@@ -86,7 +86,7 @@ def subtract_quantity(db_name: str, table_name: str, query: str) -> str:
   
   try:
     # Split the query into name and quantity_to_add
-    name, quantity_to_subtract = query.split(",", 1)
+    name, quantity_to_subtract = query.rsplit(",", 1)
     
     # Check if the name is not null or empty
     if not name.strip():
@@ -213,7 +213,7 @@ def add_cards_from_file(db_name, table_name, file_path) -> str:
     # Process each line
     for line in lines:
       # Split the line into name and quantity
-      name, quantity = line.split(",", 1)
+      name, quantity = line.rsplit(",", 1)
 
       # Convert the name to lowercase for consistency
       lower_name = name.lower()
@@ -271,7 +271,7 @@ def search_card_exact_and_compare(db_name, table_name, column_name, file_path) -
 
     for card in cards:
       # Split the card into name and quantity
-      name, quantity = card.split(",", 1)
+      name, quantity = card.rsplit(",", 1)
 
       # Convert the name to lowercase for consistency
       lower_name = name.lower()
@@ -315,7 +315,7 @@ def remove_cards_from_file(db_name, table_name, file_path) -> str:
 
     # Process each line
     for line in lines:
-      name, quantity = line.split(",", 1)
+      name, quantity = line.rsplit(",", 1)
       lower_name = name.lower()
 
       # Check if the record exists and get the current quantity
@@ -405,7 +405,7 @@ def add_diff(db_name, table_name, file_path) -> str:
 
         # Process each line
         for line in lines:
-            name, quantity = line.split(",", 1)
+            name, quantity = line.rsplit(",", 1)
             lower_name = name.lower()
 
             # Check if the record exists and get the current quantity

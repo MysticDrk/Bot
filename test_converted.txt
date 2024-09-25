@@ -1,0 +1,4 @@
+// Trouble Shooter, 1, Raul
+Sanity, 1, Fraying
+Signet, 1, Arcane
+5, Island,

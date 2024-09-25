@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS cards (
 # Creating the table into our
 # database
 cursor.execute(create_table_query)
+"""
 
 # Path to the CSV file
 csv_file_path = "data.csv"
@@ -47,11 +48,11 @@ for row in data_array[1:]:  # Skip the header row
     quantity = int(row[1])
 
     # Insert the data, incrementing the quantity if the name already exists
-    insert_or_update_query = """
+    insert_or_update_query = 
     INSERT INTO cards (name, quantity)
     VALUES (?, ?)
     ON CONFLICT(name) DO UPDATE SET quantity = quantity + excluded.quantity;
-    """
+    
     cursor.execute(insert_or_update_query, (name, quantity))
 
     count += 1
@@ -60,7 +61,8 @@ for row in data_array[1:]:  # Skip the header row
 # Committing the changes
 connection.commit()
 
+"""
 # closing the database connection
 connection.close()
 
-print("Database populated with {} entries.".format(count))
+print("Database populated with 0 entries.")
