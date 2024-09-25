@@ -66,7 +66,7 @@ def add_or_update_quantity(db_name: str, table_name: str,query: str) -> str:
           return f"Added '{name}' with quantity {quantity_to_add}"
 
   except sqlite3.Error as e:
-      return f"An error occurred: {e}"
+      return [f"An error occurred: {e}"]
 
   finally:
       # Ensure the connection is closed
@@ -136,17 +136,16 @@ def subtract_quantity(db_name: str, table_name: str, query: str) -> str:
             cursor.execute(delete_query, (lower_name,))
             
             conn.commit()
-            
+            conn.close()
             return "Removed {}".format(name)
               
       else:
+          conn.close()
           return f"No record found for '{name}' to subtract the quantity."
 
   except sqlite3.Error as e:
-      return f"An error occurred: {e}"
-
-  # Commit the changes and close the connection
-  conn.close()
+      conn.close()
+      return [f"An error occurred: {e}"]
 
 def search_card(db_name, table_name, column_name, substring) -> str:
   """
@@ -242,7 +241,7 @@ def add_cards_from_file(db_name, table_name, file_path) -> str:
     return formatted if formatted else "No cards added."
 
   except Exception as e:
-    return f"An error occurred: {e}"
+    return [f"An error occurred: {e}"]
 
   finally:
     # Close the database connection
@@ -287,7 +286,7 @@ def search_card_exact_and_compare(db_name, table_name, column_name, file_path) -
         formatted.append(f"Found \"{name}\": you need {current_quantity if current_quantity > 0 else 0}")
 
   except Exception as e:
-      return f"An error occurred: {e}"
+      return [f"An error occurred: {e}"]
 
   finally:
       # Close the database connection
@@ -340,10 +339,10 @@ def remove_cards_from_file(db_name, table_name, file_path) -> str:
     # Commit the changes
     conn.commit()
 
-    return formatted if formatted else "No cards removed."
+    return formatted if formatted else ["No cards removed."]
 
   except Exception as e:
-    return f"An error occurred: {e}"
+    return [f"An error occurred: {e}"]
 
   finally:
     # Close the database connection
@@ -402,7 +401,7 @@ def add_diff(db_name, table_name, file_path) -> str:
     try:
         file_path =  file_path.replace("\r", "")# Remove carriage return characters because Windows
         lines = file_path.split("\n")
-
+        owned = []
         # Process each line
         for line in lines:
             name, quantity = line.rsplit(",", 1)
@@ -423,9 +422,8 @@ def add_diff(db_name, table_name, file_path) -> str:
                     cursor.execute(update_query, (new_quantity, lower_name))
                     formatted.append(f"Updated \"{name}\": quantity {current_quantity} -> {new_quantity.strip()}")
                 else:
-                    formatted.append(f"You already own \"{name}\": quantity {current_quantity} (no change)")
+                    owned.append(f"{name}")
 
-                
             else:
                 # Insert a new record if it does not exist
                 insert_query = f"INSERT INTO {table_name} (name, quantity) VALUES (?, ?)"
@@ -434,31 +432,20 @@ def add_diff(db_name, table_name, file_path) -> str:
 
         # Commit the changes
         conn.commit()
-
-        return formatted if formatted else "No differences added."
+        if owned == []:
+            return ["No differences added."]
+        else:
+          if len(owned) == len(lines):
+            return ["You already own every card in the file."]
+          return formatted 
 
     except Exception as e:
-        return f"An error occurred: {e}"
+        return [f"An error occurred: {e}"]
 
     finally:
         # Close the database connection
         conn.close()
 
-#Example usage
 db_name = 'data.db'
 table_name = 'cards'
 column_name = 'name'
-# file_path= "cards.txt"
-
-
-#print(search_card(db_name, table_name, column_name, substring))
-
-#print(subtract_quantity(db_name, table_name, query))
-
-#print(add_or_update_quantity(db_name,table_name,query))
-
-#compare_with_file(db_name,table_name, file_path)
-
-#print(read_file_rows(file_path))
-
-#print(search_card_exact_and_compare(db_name,table_name,column_name,file_path))
