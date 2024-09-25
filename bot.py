@@ -186,6 +186,9 @@ async def handle_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 else:
                     await update.message.reply_text('Failed to read the file content. Please try again.')
                 return
+    else:
+        await update.message.reply_text('Please provide a valid command.')
+        return
 
 async def handle_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:#???
     context.args = update.message.text.split()[1:]
@@ -266,8 +269,9 @@ def main() -> None:
     #application.add_handler(MessageHandler(filters=[filters.Document.ALL,filters.Command], ))
     
     # Start the Bot
-    application.run_polling()
     print("Polling...")
+    application.run_polling()
+    
     
 if __name__ == '__main__':
     subprocess.run(["python", "createDB.py"])
