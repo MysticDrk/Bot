@@ -120,82 +120,72 @@ async def handle_file_upload(update: Update, context: ContextTypes.DEFAULT_TYPE)
     # logging.info(update.message.chat.first_name + "" + " uploaded a file")
     command = update.message.caption.split()[0]
     file = update.message.document
-    if command == "/compare":  
-        if file.mime_type == 'text/plain':  # Ensure it's a text file
+    if file.mime_type == 'text/plain':  # Ensure it's a text file
             file_id = file.file_id
             new_file = await context.bot.get_file(file_id)
             file_url = new_file.file_path
-
-            # Open the file in memory without saving it locally
-            async with aiohttp.ClientSession() as session:
-                async with session.get(file_url) as response:
-                    if response.status == 200:
-                        content = search_card_exact_and_compare(db_name,table_name,column_name, await response.text())
-                        response = ""
-                        for row in content:
-                            response += row + "\n"
-                        await update.message.reply_text(response)
-                    else:
-                        await update.message.reply_text('Failed to read the file content. Please try again.')
-                    return
-        else:
-            await update.message.reply_text('Please upload a valid text file.')
-    if command == "/add":
-        if file.mime_type == 'text/plain':  # Ensure it's a text file
-            file_id = file.file_id
-            new_file = await context.bot.get_file(file_id)
-            file_url = new_file.file_path
-
-            # Open the file in memory without saving it locally
-            async with aiohttp.ClientSession() as session:
-                async with session.get(file_url) as response:
-                    if response.status == 200:
-                        content = add_cards_from_file(db_name,table_name, await response.text())
-                        response = ""
-                        for row in content:
-                            response += row + "\n"
-                        await update.message.reply_text(response)
-                    else:
-                        await update.message.reply_text('Failed to read the file content. Please try again.')
-                    return
-        else:
-            await update.message.reply_text('Please upload a valid text file.')
-    if command == "/remove":
-        if file.mime_type == 'text/plain':
-            file_id = file.file_id
-            new_file = await context.bot.get_file(file_id)
-            file_url = new_file.file_path
-
-            async with aiohttp.ClientSession() as session:
-                async with session.get(file_url) as response:
-                    if response.status == 200:
-                        content = remove_cards_from_file(db_name,table_name, await response.text())
-                        response = ""
-                        for row in content:
-                            response += row + "\n"
-                        await update.message.reply_text(response)
-                    else:
-                        await update.message.reply_text('Failed to read the file content. Please try again.')
-                    return
-    if command == "/add_diff":
-        if file.mime_type == 'text/plain':
-            file_id = file.file_id
-            new_file = await context.bot.get_file(file_id)
-            file_url = new_file.file_path
-
-            async with aiohttp.ClientSession() as session:
-                async with session.get(file_url) as response:
-                    if response.status == 200:
-                        content = add_diff(db_name,table_name, await response.text())
-                        response = ""
-                        for row in content:
-                            response += row + "\n"
-                        await update.message.reply_text(response)
-                    else:
-                        await update.message.reply_text('Failed to read the file content. Please try again.')
-                    return
     else:
-        await update.message.reply_text('Please upload the text file with an appropriate command.')
+            await update.message.reply_text('Please upload a valid text file.')
+    if command.__contains__("/compare"):  
+        # Open the file in memory without saving it locally
+        async with aiohttp.ClientSession() as session:
+            async with session.get(file_url) as response:
+                if response.status == 200:
+                    content = search_card_exact_and_compare(db_name,table_name,column_name, await response.text())
+                    response = ""
+                    if not command.__contains__("file"):
+                        for row in content:
+                            if not row.__contains__("0"):
+                                response += f"{row.split(':')[1].replace('you need ','').strip()} {row.split(':')[0].replace('Found ', '').strip()}\n".replace('"','')
+                        create_file("diff.txt", response)
+                        if os.path.exists("diff.txt"):
+                            await context.bot.send_document(chat_id=update.message.chat_id, document=open("diff.txt", 'rb'))
+                            os.remove("diff.txt")
+                            return
+                        await update.message.reply_text("failed to create file")
+                    else:
+                        for row in content:
+                            response += row + "\n"
+                        await update.message.reply_text(response)
+                else:
+                    await update.message.reply_text('Failed to read the file content. Please try again.')
+                return
+    if command == "/add":
+        async with aiohttp.ClientSession() as session:
+            async with session.get(file_url) as response:
+                if response.status == 200:
+                    content = add_cards_from_file(db_name,table_name, await response.text())
+                    response = ""
+                    for row in content:
+                        response += row + "\n"
+                    await update.message.reply_text(response)
+                else:
+                    await update.message.reply_text('Failed to read the file content. Please try again.')
+                return
+    if command == "/remove":
+        async with aiohttp.ClientSession() as session:
+            async with session.get(file_url) as response:
+                if response.status == 200:
+                    content = remove_cards_from_file(db_name,table_name, await response.text())
+                    response = ""
+                    for row in content:
+                        response += row + "\n"
+                    await update.message.reply_text(response)
+                else:
+                    await update.message.reply_text('Failed to read the file content. Please try again.')
+                return
+    if command == "/add_diff":
+        async with aiohttp.ClientSession() as session:
+            async with session.get(file_url) as response:
+                if response.status == 200:
+                    content = add_diff(db_name,table_name, await response.text())
+                    response = ""
+                    for row in content:
+                        response += row + "\n"
+                    await update.message.reply_text(response)
+                else:
+                    await update.message.reply_text('Failed to read the file content. Please try again.')
+                return
 
 async def handle_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:#???
     context.args = update.message.text.split()[1:]
@@ -247,6 +237,11 @@ def load_ids() -> None:
     # Load the authorized user IDs from the environment
     global authorized_users
     authorized_users = list(map(int, get_env_variable("AUTHORIZED_USERS").split(',')))
+
+def create_file(file_path: str, content: str) -> None:
+    # Create a file with the given content
+    with open(file_path, 'w') as file:
+        file.write(content)
 
 # Main function
 def main() -> None:

@@ -284,6 +284,8 @@ def search_card_exact_and_compare(db_name, table_name, column_name, file_path) -
         current_quantity = result[0]
         current_quantity = int(quantity.strip()) - current_quantity
         formatted.append(f"Found \"{name}\": you need {current_quantity if current_quantity > 0 else 0}")
+      else:
+        formatted.append(f"Found \"{name}\": you need {quantity.strip()}")
 
   except Exception as e:
       return [f"An error occurred: {e}"]
@@ -378,7 +380,7 @@ def return_inventory_file(db_name, table_name, directory) -> str:
         # Write the inventory to the file
         with open(file_path, "w") as file:
             for row in results:
-                file.write(f"{row[0]},{row[1]}\n")
+                file.write(f"{row[0]} {row[1]}\n")
 
         return f"{file_path}"
     finally:
